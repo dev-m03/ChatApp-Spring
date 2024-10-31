@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WebSocket Chat</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        /* Reset and Theme Colors */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background-color: #1e1e1e;
+            color: #d4d4d4;
+            font-family: 'Fira Code', monospace;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            padding: 0 20px;
+        }
+
+        #main-content {
+            background-color: #252526;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+            padding: 20px;
+            width: 100%;
+            max-width: 600px;
+        }
+
+        h2 {
+            color: #ff6161;
+            font-weight: 600;
+        }
+
+        /* Buttons */
+        .btn {
+            background-color: #007acc;
+            border: none;
+            color: #fff;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9em;
+            transition: background-color 0.3s;
+        }
+        .btn:disabled {
+            background-color: #444;
+            cursor: not-allowed;
+        }
+        .btn:hover {
+            background-color: #005a9e;
+        }
+
+        /* Form */
+        .form-inline {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+
+        .form-control {
+            background-color: #2d2d2d;
+            border: 1px solid #333;
+            color: #d4d4d4;
+            padding: 8px;
+            width: 100%;
+            max-width: 200px;
+            border-radius: 4px;
+        }
+        .form-control:focus {
+            outline: none;
+            border-color: #007acc;
+            box-shadow: 0 0 3px #007acc;
+        }
+
+        /* Table */
+        #conversation {
+            margin-top: 15px;
+            width: 100%;
+            color: #d4d4d4;
+            border-collapse: collapse;
+        }
+        #conversation thead th {
+            color: #007acc;
+            padding: 10px;
+            border-bottom: 2px solid #333;
+            text-align: left;
+        }
+        #greetings tr {
+            transition: background-color 0.2s;
+        }
+        #greetings tr:hover {
+            background-color: #333;
+        }
+        #greetings td {
+            padding: 10px;
+            border-bottom: 1px solid #333;
+        }
+    </style>
+    <script src="https://code.jquery.com/jquery-3.1.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@stomp/stompjs@7.0.0/bundles/stomp.umd.min.js"></script>
+    <script src="/app.js"></script>
+</head>
+<body>
+<noscript><h2>JavaScript Required</h2><p>Please enable JavaScript to use WebSocket functionality.</p></noscript>
+<div id="main-content">
+    <div class="form-inline">
+        <button id="connect" class="btn" type="button">Connect</button>
+        <button id="disconnect" class="btn" type="button" disabled>Disconnect</button>
+    </div>
+    <div class="form-inline">
+        <input type="text" id="name" class="form-control" placeholder="Name...">
+        <input type="text" id="message" class="form-control" placeholder="Message...">
+        <button id="send" class="btn" type="submit">Send</button>
+    </div>
+    <table id="conversation">
+        <thead>
+        <tr>
+            <th>Chat</th>
+        </tr>
+        </thead>
+        <tbody id="greetings"></tbody>
+    </table>
+</div>
+
+<script>
+    let stompClient = null;
+
+    function connect() {
+        const socket = new SockJS('/your-websocket-endpoint');
+        stompClient = Stomp.over(socket);
+        stompClient.connect({}, function (frame) {
+            console.log('Connected: ' + frame);
+            setConnected(true);
+            stompClient.subscribe('/topic/greetings', function (greeting) {
+                const messageData = JSON.parse(greeting.body);
+                showGreeting(messageData.name, messageData.message);
+            });
+        });
+    }
+
+    function disconnect() {
+        if (stompClient !== null) {
+            stompClient.disconnect();
+        }
+        setConnected(false);
+        console.log("Disconnected");
+    }
+
+    function sendMessage() {
+        const name = $('#name').val();
+        const message = $('#message').val();
+        stompClient.send("/app/hello", {}, JSON.stringify({ 'name': name, 'message': message }));
+    }
+
+    function showGreeting(name, message) {
+        $('#greetings').append(`<tr><td><strong>${name}:</strong> ${message}</td></tr>`);
+    }
+
+    function setConnected(connected) {
+        $("#connect").prop("disabled", connected);
+        $("#disconnect").prop("disabled", !connected);
+        $("#conversation").toggle(connected);
+        if (!connected) {
+            $("#greetings").html("");
+        }
+    }
+
+    $(function () {
+        $('#connect').click((e) => {
+            e.preventDefault();
+            connect();
+        });
+        $('#disconnect').click((e) => {
+            e.preventDefault();
+            disconnect();
+        });
+        $('#send').click((e) => {
+            e.preventDefault();
+            sendMessage();
+        });
+    });
+</script>
+</body>
+</html>
